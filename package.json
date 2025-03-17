@@ -38,6 +38,7 @@
     "eslint": "^9.22.0",
     "globals": "^16.0.0",
     "lightningcss": "^1.29.3",
+    "open-props": "^1.7.13",
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.1",
     "vitest": "^3.0.8"

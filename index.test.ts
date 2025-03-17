@@ -2,6 +2,7 @@
 import { bundle, transform } from 'lightningcss'
 import plugin, { Options } from './'
 import { expect, it, vi } from 'vitest'
+import { readFileSync, writeFileSync } from 'node:fs'
 
 const MockProps = {
   '--red': '#e44',
@@ -637,4 +638,16 @@ it('Parses an empty file and rule', () => {
   const result = transform({ visitor: pluginInstance, code: Buffer.from(''), filename: 'input.css' })
   expect(result.code.toString().trim()).toEqual("");
   expect(result.warnings).toHaveLength(0);
+})
+
+it("handles openprops", () => {
+  const { warnings, code } = bundle({
+    filename: 'test-with-openprops-normalize-input.css',
+    visitor: plugin({
+      files: ['node_modules/open-props/open-props.min.css']
+    })
+  })
+  expect(warnings).toHaveLength(0)
+  const expectedOutput = readFileSync("test-with-openprops-normalize-output.css", { encoding: 'utf-8' })
+  expect(code.toString()).toEqual(expectedOutput)
 })

@@ -30,6 +30,9 @@ importers:
       lightningcss:
         specifier: ^1.29.3
         version: 1.29.3
+      open-props:
+        specifier: ^1.7.13
+        version: 1.7.13
       typescript:
         specifier: ^5.8.2
         version: 5.8.2
@@ -945,6 +948,9 @@ packages:
 
   natural-compare@1.4.0:
     resolution: {integrity: sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==}
+
+  open-props@1.7.13:
+    resolution: {integrity: sha512-A+8iJVr5oOpSrhvJMPz5KRb7ib4kav6V7+0014qpOM+rPukRxibi5BGCmwFECAz8uj6lN3pL1h7yp0ljtxqxuA==}
 
   optionator@0.9.4:
     resolution: {integrity: sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==}
@@ -2060,6 +2066,8 @@ snapshots:
   nanoid@3.3.10: {}
 
   natural-compare@1.4.0: {}
+
+  open-props@1.7.13: {}
 
   optionator@0.9.4:
     dependencies:
