@@ -1,13 +1,13 @@
 // adapted from https://github.com/GoogleChromeLabs/postcss-jit-props/blob/main/index.js
 import { readFileSync } from 'node:fs'
 import crypto from "node:crypto"
-import glob from "tiny-glob/sync"
+import glob from "tiny-glob/sync.js"
 import { Buffer } from "node:buffer"
 
 /**
  * @typedef {import("lightningcss").CustomAtRules} CustomAtRules
  * @typedef {import("lightningcss").MediaCondition} MediaCondition
- * @typedef {import("lightningcss").Visitor} Visitor
+ * @typedef {import("lightningcss").Visitor<CustomAtRules>} Visitor
  * @typedef {import("lightningcss").Selector} Selector
  * @typedef {import("lightningcss").ReturnedDeclaration} ReturnedDeclaration
  * @typedef {import("lightningcss").ReturnedRule} ReturnedRule
@@ -172,7 +172,7 @@ function* parseProps(p) {
 
 /**
  * @param {Options} options 
- * @returns {Visitor<CustomAtRules>}
+ * @returns {Visitor}
  */
 export default function plugin(options) {
     const {
@@ -265,6 +265,11 @@ export default function plugin(options) {
             const target_selector = custom_selector || rootSelector
             const target_selector_dark = custom_selector_dark || target_selector
 
+            const rootRules = stylesheet.rules.map(r => ({
+                type: r.type,
+                value: r.value
+            }))
+
             /** @type {ReturnedRule[] | undefined} */
             let rulesToAppend,
                 /** @type {ReturnedRule[] | undefined} */
@@ -281,10 +286,10 @@ export default function plugin(options) {
                         rules: rulesToAppend
                     }
                 }
-                rules = [layerRule, ...stylesheet.rules]
+                rules = [layerRule, ...rootRules]
             }
             else {
-                rules = stylesheet.rules
+                rules = rootRules
                 rulesToAppend = rules
             }
 

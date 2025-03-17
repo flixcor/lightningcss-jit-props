@@ -1,7 +1,7 @@
 {
   "name": "lightningcss-jit-props",
   "type": "module",
-  "version": "0.0.1-alpha.2",
+  "version": "0.0.1-alpha.5",
   "description": "LightningCSS plugin to insert variables from a data source based on discovered usage. Adapted from https://github.com/GoogleChromeLabs/postcss-jit-props",
   "keywords": [
     "lightningcss",

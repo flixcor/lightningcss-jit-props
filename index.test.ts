@@ -1,5 +1,5 @@
 // adapted from https://github.com/GoogleChromeLabs/postcss-jit-props/blob/main/index.test.js
-import { transform } from 'lightningcss'
+import { bundle, transform } from 'lightningcss'
 import plugin, { Options } from './'
 import { expect, it, vi } from 'vitest'
 
