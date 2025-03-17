@@ -1,5 +1,6 @@
 import type {
     CustomAtRules,
+    Visitor
 } from 'lightningcss';
 
 export type Options = {
