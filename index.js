@@ -16,6 +16,7 @@ import { Buffer } from "node:buffer"
  * @typedef {import("lightningcss").MediaFeatureId} MediaFeatureId
  * @typedef {import("lightningcss").CustomMediaRule} CustomMediaRule
  * @typedef {import("lightningcss").KeyframesRule} KeyframesRule
+ * @typedef {import("lightningcss").Variable} Variable
  * 
  * @typedef {CustomMediaRule | ReturnedDeclaration | KeyframesRule<ReturnedDeclaration> | null | undefined} PropValue
  * 
@@ -78,6 +79,44 @@ function isDeclaration(value) {
  */
 function isCustomMedia(value) {
     return !!value && 'query' in value
+}
+
+/**
+ * @generator
+ * @returns {Generator<import('lightningcss').Variable>}
+ * @param {import('lightningcss').TokenOrValue[]} tokenOrValueArray 
+ */
+function* getVariables(tokenOrValueArray) {
+    for (const tokenOrValue of tokenOrValueArray) {
+        switch (tokenOrValue.type) {
+            case "function":
+                yield* getVariables(tokenOrValue.value.arguments)
+                break;
+            case "var":
+                yield tokenOrValue.value
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+/**
+ * @param {Props} props 
+ * @param {Variable} variable 
+ * @return {Generator<{property: "custom", value: import('lightningcss').CustomProperty}>}
+ */
+function* getVariableDeclarationRecursive(props, variable) {
+    const declaration = props[variable.name.ident]
+    if (!isDeclaration(declaration)) return;
+    yield declaration
+    if (declaration.property === "custom") {
+        /** @type {import('lightningcss').CustomProperty} */
+        const value = declaration.value
+        for (const variable of getVariables(value.value)) {
+            yield* getVariableDeclarationRecursive(props, variable)
+        }
+    }
 }
 
 /**
@@ -396,15 +435,10 @@ export default function plugin(options) {
         Variable(variable) {
             if (processed.has(variable)) return;
             const { name: { ident: prop } } = variable
-            const value = UserProps[prop]
-
-            // warn if props won't resolve from plugin
-            if (!isDeclaration(value)) {
-                return
-            }
-
-            // create and append prop to :root
-            STATE.target_rule.push(value)
+            // track work to prevent duplicative processing
+            processed.add(variable)
+            if (STATE.mapped.has(prop)) return;
+            STATE.target_rule.push(...getVariableDeclarationRecursive(UserProps, variable))
             STATE.mapped.add(prop)
 
             // lookup keyframes for the prop and append if found
@@ -428,9 +462,6 @@ export default function plugin(options) {
                     STATE.mapped_dark.add(prop)
                 }
             }
-
-            // track work to prevent duplicative processing
-            processed.add(variable)
         },
     }
 }

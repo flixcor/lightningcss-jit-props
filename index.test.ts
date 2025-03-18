@@ -2,7 +2,7 @@
 import { bundle, transform } from 'lightningcss'
 import plugin, { Options } from './'
 import { expect, it, vi } from 'vitest'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 
 const MockProps = {
   '--red': '#e44',

@@ -58,6 +58,8 @@
   --blue-5: #339af0;
   --radius-3: 1rem;
   --shadow-6: 0 -1px 2px 0 hsl(var(--shadow-color) / calc(var(--shadow-strength)  + 2.0%)), 0 3px 2px -2px hsl(var(--shadow-color) / calc(var(--shadow-strength)  + 3.0%)), 0 7px 5px -2px hsl(var(--shadow-color) / calc(var(--shadow-strength)  + 3.0%)), 0 12px 10px -2px hsl(var(--shadow-color) / calc(var(--shadow-strength)  + 4.0%)), 0 22px 18px -2px hsl(var(--shadow-color) / calc(var(--shadow-strength)  + 5.0%)), 0 41px 33px -2px hsl(var(--shadow-color) / calc(var(--shadow-strength)  + 6.0%)), 0 100px 80px -2px hsl(var(--shadow-color) / calc(var(--shadow-strength)  + 7.0%));
+  --shadow-color: 220 40.0% 2.0%;
+  --shadow-strength: 25.0%;
   --size-relative-7: 2ch;
   --shadow-2: 0 3px 5px -2px hsl(var(--shadow-color) / calc(var(--shadow-strength)  + 3.0%)), 0 7px 14px -5px hsl(var(--shadow-color) / calc(var(--shadow-strength)  + 5.0%));
   --size-relative-6: 1.75ch;
@@ -66,6 +68,7 @@
   --shadow-1: 0 1px 2px -1px hsl(var(--shadow-color) / calc(var(--shadow-strength)  + 9.0%));
   --gray-5: #adb5bd;
   --inner-shadow-4: inset 0 2px 14px 0 hsl(var(--shadow-color) / calc(var(--shadow-strength)  + 9.0%)), var(--inner-shadow-highlight);
+  --inner-shadow-highlight: inset 0 -.5px 0 0 #fff1, inset 0 .5px 0 0 #0007;
 }
 
 :where(html) {
