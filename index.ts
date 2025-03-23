@@ -229,15 +229,15 @@ function* purgeRules<R extends Rule[] | PageMarginRule[]>(rules: R, vars: Set<st
                 ...rule.value
             }
         }
-        if ("rules" in rule.value && rule.value.rules) {
-            rule.value.rules = [...purgeRules(rule.value.rules, vars)] as Rule[] | PageMarginRule[]
+        if ("rules" in mappedRule.value && mappedRule.value.rules) {
+            mappedRule.value.rules = [...purgeRules(mappedRule.value.rules, vars)] as Rule[] | PageMarginRule[]
         }
-        if ("declarations" in rule.value && rule.value.declarations) {
-            if (rule.value.declarations.declarations) {
-                rule.value.declarations.declarations = [...purgeDeclarations(rule.value.declarations.declarations, vars)]
+        if ("declarations" in mappedRule.value && mappedRule.value.declarations) {
+            if (mappedRule.value.declarations.declarations) {
+                mappedRule.value.declarations.declarations = [...purgeDeclarations(mappedRule.value.declarations.declarations, vars)]
             }
-            if (rule.value.declarations.importantDeclarations) {
-                rule.value.declarations.importantDeclarations = [...purgeDeclarations(rule.value.declarations.importantDeclarations, vars)]
+            if (mappedRule.value.declarations.importantDeclarations) {
+                mappedRule.value.declarations.importantDeclarations = [...purgeDeclarations(mappedRule.value.declarations.importantDeclarations, vars)]
             }
         }
         yield mappedRule as R extends Rule[] ? Rule : PageMarginRule

@@ -85,34 +85,6 @@
       --shadow-color: 220 40% 2%;
       --shadow-strength: 25%;
     }
-    @keyframes fade-in-bloom {
-      0% {
-        filter: brightness() blur(20px);
-        opacity: 0;
-      }
-      10% {
-        filter: brightness(0.5) blur(10px);
-        opacity: 1;
-      }
-      to {
-        filter: brightness() blur();
-        opacity: 1;
-      }
-    }
-    @keyframes fade-out-bloom {
-      to {
-        filter: brightness() blur(20px);
-        opacity: 0;
-      }
-      10% {
-        filter: brightness(0.5) blur(10px);
-        opacity: 1;
-      }
-      0% {
-        filter: brightness() blur();
-        opacity: 1;
-      }
-    }
   }
 }
 :where(html) {
