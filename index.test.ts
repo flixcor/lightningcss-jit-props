@@ -5,6 +5,7 @@ import { expect, it, vi } from 'vitest'
 import { readFileSync, writeFileSync } from 'node:fs'
 import postcss from "postcss"
 import postcssPlugin from 'postcss-jit-props'
+import * as prettier from "prettier"
 
 const MockProps = {
   '--red': '#e44',
@@ -642,18 +643,24 @@ function run(input: string, output: string, options: Options = {}) {
 //   expect(result.warnings).toHaveLength(0);
 // })
 
+const prettierCss = (c: string) => prettier.format(c, {parser: 'css'})
+
 it("handles openprops", async () => {
+  const options = {
+    files: ['node_modules/open-props/open-props.min.css'],
+    layer: 'my-layer'
+  }
   const { warnings, code } = bundle({
     filename: 'node_modules/open-props/normalize.min.css',
-    visitor: plugin({
-      files: ['node_modules/open-props/open-props.min.css']
-    })
+    visitor: plugin(options),
+    minify: true
   })
+  const pretty = await prettierCss(code.toString())
   const input = readFileSync('node_modules/open-props/normalize.min.css', { encoding: 'utf-8' })
-  const { css } = await postcss([postcssPlugin({ files: ['node_modules/open-props/open-props.min.css'] as any })]).process(input)
-  writeFileSync("post.css", css)
+  const { css } = await postcss([postcssPlugin(options as any)]).process(input)
+  writeFileSync("post.css", await prettierCss(css))
   expect(warnings).toHaveLength(0)
-  writeFileSync("test-with-openprops-normalize-output.css", code)
+  writeFileSync("test-with-openprops-normalize-output.css", pretty)
   const expectedOutput = readFileSync("test-with-openprops-normalize-output.css", { encoding: 'utf-8' })
-  expect(code.toString()).toEqual(expectedOutput)
+  expect(pretty).toEqual(expectedOutput)
 })

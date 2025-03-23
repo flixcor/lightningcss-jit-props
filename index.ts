@@ -16,17 +16,15 @@ import type {
     Visitor as _Visitor,
     ReturnedMediaQuery,
     Selector,
-    TokenOrValue,
-    Variable,
+
     MediaCondition,
     StyleSheet,
     ReturnedRule,
-    StyleRule,
     Rule,
     DeclarationBlock,
-    CustomProperty
+    PageMarginRule,
+    Declaration,
 } from 'lightningcss'
-import { Declaration } from 'postcss';
 
 type CustomMediaRule = _CustomMediaRule<ReturnedMediaQuery>
 type KeyframesRule = _KeyframesRule<ReturnedDeclaration>
@@ -69,43 +67,43 @@ const loc = {
 
 const processed = new WeakSet();
 
-const getAdaptivePropSelector = (selector: string | undefined): (s: string) => string =>
-    selector
-        ? prop => `${prop}${selector}`
-        : prop => `${prop}-@media:dark`
+// const getAdaptivePropSelector = (selector: string | undefined): (s: string) => string =>
+//     selector
+//         ? prop => `${prop}${selector}`
+//         : prop => `${prop}-@media:dark`
 
 
-function* getVariables(tokenOrValueArray: TokenOrValue[]): Generator<Variable> {
-    for (const tokenOrValue of tokenOrValueArray) {
-        switch (tokenOrValue.type) {
-            case "function":
-                yield* getVariables(tokenOrValue.value.arguments)
-                break;
-            case "var":
-                yield tokenOrValue.value
-                break;
-            // case 'unresolved-color':
-            //     yield* getVariables(tokenOrValue.value.alpha);
-            //     yield* getVariables(tokenOrValue.value.dark);
-            //     yield* getVariables(tokenOrValue.value.light);
-            //     break;
-            default:
-                break;
-        }
-    }
-}
+// function* getVariables(tokenOrValueArray: TokenOrValue[]): Generator<Variable> {
+//     for (const tokenOrValue of tokenOrValueArray) {
+//         switch (tokenOrValue.type) {
+//             case "function":
+//                 yield* getVariables(tokenOrValue.value.arguments)
+//                 break;
+//             case "var":
+//                 yield tokenOrValue.value
+//                 break;
+//             // case 'unresolved-color':
+//             //     yield* getVariables(tokenOrValue.value.alpha);
+//             //     yield* getVariables(tokenOrValue.value.dark);
+//             //     yield* getVariables(tokenOrValue.value.light);
+//             //     break;
+//             default:
+//                 break;
+//         }
+//     }
+// }
 
-function* getVariableDeclarationRecursive(props: Props, variable: Variable): Generator<ReturnedDeclaration> {
-    const declaration = props[variable.name.ident]
-    if (!isDeclaration(declaration?.value)) return;
-    yield declaration.value
-    if (declaration.value.property === "custom" && 'value' in declaration.value) {
-        const value = declaration.value.value
-        for (const variable of getVariables(value.value)) {
-            yield* getVariableDeclarationRecursive(props, variable)
-        }
-    }
-}
+// function* getVariableDeclarationRecursive(props: Props, variable: Variable): Generator<ReturnedDeclaration> {
+//     const declaration = props[variable.name.ident]
+//     if (!isDeclaration(declaration?.value)) return;
+//     yield declaration.value
+//     if (declaration.value.property === "custom" && 'value' in declaration.value) {
+//         const value = declaration.value.value
+//         for (const variable of getVariables(value.value)) {
+//             yield* getVariableDeclarationRecursive(props, variable)
+//         }
+//     }
+// }
 
 const getState = (): State => (
     {
@@ -140,20 +138,20 @@ function* getFeatures(condition: MediaCondition | null | undefined): Generator<s
 
 const isValidKey = (k: string): k is `--${string}` => k.startsWith('--')
 
-const getMediaRuleKey = (r: MediaRule) => r.query.mediaQueries
-    .map(x => [...getMediaQueryKey(x)].join("|"))
-    .sort()
-    .join('|||')
+// const getMediaRuleKey = (r: MediaRule) => r.query.mediaQueries
+//     .map(x => [...getMediaQueryKey(x)].join("|"))
+//     .sort()
+//     .join('|||')
 
-function* getMediaQueryKey(q: ReturnedMediaQuery): Generator<string> {
-    if ('raw' in q) {
-        yield q.raw
-        return
-    }
-    yield* getFeatures(q.condition)
-    if (q.qualifier) yield q.qualifier
-    if (q.mediaType) yield q.mediaType
-}
+// function* getMediaQueryKey(q: ReturnedMediaQuery): Generator<string> {
+//     if ('raw' in q) {
+//         yield q.raw
+//         return
+//     }
+//     yield* getFeatures(q.condition)
+//     if (q.qualifier) yield q.qualifier
+//     if (q.mediaType) yield q.mediaType
+// }
 
 function* parseProps(p: Record<string, string | number>): Generator<[string, PropValue]> {
     for (const [property, value] of Object.entries(p)) {
@@ -211,6 +209,48 @@ function* parseProps(p: Record<string, string | number>): Generator<[string, Pro
     }
 }
 
+
+function* purgeRules<R extends Rule[] | PageMarginRule[]>(rules: R, vars: Set<string>): Generator<R extends Rule[] ? Rule : PageMarginRule> {
+    for (const rule of rules) {
+        if (!("type" in rule) || rule.type === "font-feature-values") {
+            // page margin rule
+            yield rule as R extends Rule[] ? Rule : PageMarginRule;
+            continue;
+        }
+        if (rule.type === "keyframes" && !vars.has(rule.value.name.value)) continue;
+        if (rule.type === "custom-media" && !vars.has(rule.value.name)) continue;
+        if (!("value" in rule && rule.value && (("rules" in rule.value) || "declarations" in rule.value))) {
+            yield rule as R extends Rule[] ? Rule : PageMarginRule;
+            continue
+        }
+        const mappedRule = {
+            ...rule,
+            value: {
+                ...rule.value
+            }
+        }
+        if ("rules" in rule.value && rule.value.rules) {
+            rule.value.rules = [...purgeRules(rule.value.rules, vars)] as Rule[] | PageMarginRule[]
+        }
+        if ("declarations" in rule.value && rule.value.declarations) {
+            if (rule.value.declarations.declarations) {
+                rule.value.declarations.declarations = [...purgeDeclarations(rule.value.declarations.declarations, vars)]
+            }
+            if (rule.value.declarations.importantDeclarations) {
+                rule.value.declarations.importantDeclarations = [...purgeDeclarations(rule.value.declarations.importantDeclarations, vars)]
+            }
+        }
+        yield mappedRule as R extends Rule[] ? Rule : PageMarginRule
+    }
+}
+
+function* purgeDeclarations(declarations: Declaration[], vars: Set<string>) {
+    for (const declaration of declarations) {
+        if (declaration.property === "custom" && !vars.has(declaration.value.name)) continue;
+        yield declaration
+    }
+}
+
 export default function plugin(options: Options): Visitor {
     const {
         files,
@@ -258,9 +298,13 @@ export default function plugin(options: Options): Visitor {
 
             const fileProps = new Map()
             FilePropsCache.set(fileCacheKey, fileProps)
-            let parentRules: Rule[] = []
-            let parentDeclarations: DeclarationBlock | undefined
-            let parentProp: CustomProperty | undefined
+            type Parent = {
+                rules?: Rule[],
+                declarations?: DeclarationBlock,
+                parent?: Parent
+            }
+            let parent: Parent = {}
+            let parentProp: PropValue | undefined
 
             bundle({
                 filename: file,
@@ -268,21 +312,13 @@ export default function plugin(options: Options): Visitor {
                     customMedia: true
                 },
                 visitor: {
-                    StyleSheet({ rules }) {
-                        parentRules = rules
-                    },
-                    Rule(_rule) {
-                        const rule = _rule as typeof _rule & { parentRules?: Rule[], parentDeclarations?: DeclarationBlock }
-                        rule.parentRules = parentRules
-                        rule.parentDeclarations = parentDeclarations
-                        if ('value' in rule && rule.value) {
-                            if ('rules' in rule.value) {
-                                parentRules = rule.value.rules as Rule[]
-                            }
-                            if ('declarations' in rule.value) {
-                                parentDeclarations = rule.value.declarations
-                            }
+                    StyleSheet(s) {
+                        sourceStylesheet = s
+                        parent = {
+                            rules: s.rules,
                         }
+                    },
+                    Rule(rule) {
                         const name = rule.type === "custom-media"
                             ? rule.value.name
                             : rule.type === "keyframes"
@@ -294,24 +330,44 @@ export default function plugin(options: Options): Visitor {
                                 existing = { dependencies: [], deletion: [] }
                                 UserProps[name] = existing
                             }
-                            const rulesToDeleteFrom = rule.parentRules
-                            existing.deletion.push(() => rulesToDeleteFrom.splice(rulesToDeleteFrom.indexOf(rule), 1))
+                            const rulesToDeleteFrom = parent.rules
+                            if (rulesToDeleteFrom) {
+                                existing.deletion.push(() => {
+                                    const index = rulesToDeleteFrom.indexOf(rule)
+                                    if (index > -1) {
+                                        rulesToDeleteFrom.splice(index, 1)
+                                    }
+                                })
+                            }
+
+                        }
+                        if ('value' in rule && rule.value) {
+                            let parentRules, parentDeclarations
+                            if ('rules' in rule.value) {
+                                parentRules = rule.value.rules as Rule[]
+                            }
+                            if ('declarations' in rule.value) {
+                                parentDeclarations = rule.value.declarations
+                            }
+                            if (parentRules || parentDeclarations) {
+                                parent = {
+                                    parent,
+                                    rules: parentRules,
+                                    declarations: parentDeclarations
+                                }
+                            }
                         }
                     },
-                    RuleExit(_rule) {
-                        const rule = _rule as { parentRules?: Rule[], parentDeclarations?: DeclarationBlock }
-                        if (rule.parentRules) {
-                            parentRules = rule.parentRules
-                        }
-                        if (rule.parentDeclarations) {
-                            parentDeclarations = rule.parentDeclarations
+                    RuleExit(rule) {
+                        if (parent.parent && 'value' in rule && rule.value) {
+                            if ('rules' in rule.value || 'declarations' in rule.value) {
+                                parent = parent.parent
+                            }
                         }
                     },
                     Declaration(d) {
                         if (d.property === "custom") {
-                            const prop = d.value as typeof d.value & { parentProp?: CustomProperty }
-                            prop.parentProp = parentProp
-                            parentProp = prop
+                            const prop = d.value
                             let existing = UserProps[prop.name]
                             if (!existing) {
                                 existing = {
@@ -320,25 +376,15 @@ export default function plugin(options: Options): Visitor {
                                 }
                                 UserProps[prop.name] = existing
                             }
-                            if (prop.parentProp) {
-                                let match = UserProps[prop.parentProp.name]
-                                if (!match) {
-                                    match = {
-                                        dependencies: [],
-                                        deletion: []
-                                    }
-                                    UserProps[prop.parentProp.name] = match
-                                }
-                                match.dependencies.push(prop.name)
-                            }
-                            const declarationBlockToDeleteFrom = parentDeclarations
+                            parentProp = existing
+                            const declarationBlockToDeleteFrom = parent.declarations
                             if (declarationBlockToDeleteFrom) {
                                 existing.deletion.push(() => {
-                                    const regularIndex = declarationBlockToDeleteFrom.declarations?.indexOf(d) || -1
+                                    const regularIndex = declarationBlockToDeleteFrom.declarations?.findIndex(x => x.property === "custom" && x.value.name === prop.name) ?? -1
                                     if (regularIndex > -1) {
                                         declarationBlockToDeleteFrom.declarations?.splice(regularIndex, 1)
                                     }
-                                    const importantIndex = declarationBlockToDeleteFrom.importantDeclarations?.indexOf(d) || -1
+                                    const importantIndex = declarationBlockToDeleteFrom.importantDeclarations?.findIndex(x => x.property === "custom" && x.value.name === prop.name) ?? -1
                                     if (importantIndex > -1) {
                                         declarationBlockToDeleteFrom.importantDeclarations?.splice(importantIndex, 1)
                                     }
@@ -346,23 +392,21 @@ export default function plugin(options: Options): Visitor {
                             }
                         }
                     },
-                    DeclarationExit: {
-                        custom(p) {
-                            const prop = p as { parentProp?: CustomProperty }
-                            if (prop.parentProp) {
-                                parentProp = prop.parentProp
-                            }
+                    Variable(v) {
+                        if (parentProp) {
+                            parentProp.dependencies.push(v.name.ident)
                         }
                     },
-                    StyleSheetExit(s) {
-                        sourceStylesheet = s
+                    DeclarationExit: {
+                        custom() {
+                            parentProp = undefined
+                        }
                     },
                 }
             })
         })
     }
 
-    const foundProps = new Set<string>()
     function* expand(k: string): Generator<string> {
         const found = UserProps[k]
         if (!found) return
@@ -378,7 +422,7 @@ export default function plugin(options: Options): Visitor {
         },
 
         StyleSheetExit(stylesheet: StyleSheet) {
-            if(!sourceStylesheet) return
+            if (!sourceStylesheet) return
 
             const rootRules = stylesheet.rules.map(r => r.type === "ignored" ? r : ({
                 type: r.type,
@@ -405,15 +449,7 @@ export default function plugin(options: Options): Visitor {
                 rulesToAppend = rules
             }
 
-            for (const [key, value] of Object.entries(UserProps)) {
-                if (value?.deletion && !STATE.mapped.has(key)) {
-                    for (const d of value.deletion) {
-                        d()
-                    }
-                }
-            }
-
-            rulesToAppend.unshift(...sourceStylesheet.rules)
+            rulesToAppend.push(...purgeRules(sourceStylesheet.rules, STATE.mapped as Set<string>))
 
             return {
                 ...stylesheet,
@@ -424,16 +460,9 @@ export default function plugin(options: Options): Visitor {
             // bail early if possible
             if (processed.has(query)) return;
             for (const prop of getVars(query.condition)) {
-                // lookup prop value from pool
-                const value = UserProps[prop] || null
-
-                // warn if media prop not resolved
-                if (!value) {
-                    return
+                for (const value of expand(prop)) {
+                    STATE.mapped.add(value)
                 }
-
-                // track work to prevent duplication
-                STATE.mapped.add(prop)
             }
             processed.add(query)
         },
@@ -441,10 +470,10 @@ export default function plugin(options: Options): Visitor {
         Variable(variable) {
             if (processed.has(variable)) return;
             const { name: { ident: prop } } = variable
-            // track work to prevent duplicative processing
+            for (const value of expand(prop)) {
+                STATE.mapped.add(value)
+            }
             processed.add(variable)
-            if (STATE.mapped.has(prop)) return;
-            STATE.mapped.add(prop)
         },
     }
 }
