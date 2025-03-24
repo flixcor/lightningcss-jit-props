@@ -34,9 +34,21 @@
     --size-header-2: 25ch;
     --size-header-3: 35ch;
     --size-relative-4: 1.25ch;
+    --size-relative-6: 1.75ch;
+    --size-relative-7: 2ch;
     --ease-2: cubic-bezier(0.25, 0, 0.4, 1);
+    --ease-3: cubic-bezier(0.25, 0, 0.3, 1);
+    --ease-4: cubic-bezier(0.25, 0, 0.2, 1);
     --shadow-color: 220 3% 15%;
     --shadow-strength: 1%;
+    --inner-shadow-highlight: inset 0 -0.5px 0 0 #fff, inset 0 0.5px 0 0 #0001;
+    --shadow-1: 0 1px 2px -1px
+      hsl(var(--shadow-color) / calc(var(--shadow-strength) + 9%));
+    --shadow-2:
+      0 3px 5px -2px
+        hsl(var(--shadow-color) / calc(var(--shadow-strength) + 3%)),
+      0 7px 14px -5px
+        hsl(var(--shadow-color) / calc(var(--shadow-strength) + 5%));
     --shadow-6:
       0 -1px 2px 0 hsl(var(--shadow-color) / calc(var(--shadow-strength) + 2%)),
       0 3px 2px -2px
@@ -51,11 +63,16 @@
         hsl(var(--shadow-color) / calc(var(--shadow-strength) + 6%)),
       0 100px 80px -2px
         hsl(var(--shadow-color) / calc(var(--shadow-strength) + 7%));
+    --inner-shadow-4:
+      inset 0 2px 14px 0
+        hsl(var(--shadow-color) / calc(var(--shadow-strength) + 9%)),
+      var(--inner-shadow-highlight);
     --gray-0: #f8f9fa;
     --gray-1: #f1f3f5;
     --gray-2: #e9ecef;
     --gray-3: #dee2e6;
     --gray-4: #ced4da;
+    --gray-5: #adb5bd;
     --gray-6: #868e96;
     --gray-7: #495057;
     --gray-8: #343a40;
@@ -74,6 +91,8 @@
     --blue-5: #339af0;
     --green-1: #d3f9d8;
     --green-9: #2b8a3e;
+    --animation-fade-in: fade-in 0.5s var(--ease-3);
+    --animation-slide-in-up: slide-in-up 0.5s var(--ease-3);
     --border-size-1: 1px;
     --border-size-2: 2px;
     --border-size-3: 5px;
@@ -84,6 +103,8 @@
     :where(html) {
       --shadow-color: 220 40% 2%;
       --shadow-strength: 25%;
+      --inner-shadow-highlight:
+        inset 0 -0.5px 0 0 #fff1, inset 0 0.5px 0 0 #0007;
     }
   }
 }
@@ -286,7 +307,12 @@
   block-size: auto;
   max-inline-size: 100%;
 }
-:where(input, button, textarea, select),
+:where(input, button, textarea, select) {
+  color: inherit;
+  font: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+}
 :where(input[type="file"])::-webkit-file-upload-button {
   color: inherit;
   font: inherit;
@@ -525,5 +551,295 @@
   }
   ::placeholder {
     color: var(--gray-6);
+  }
+}
+:where(html) {
+  --gray-0-hsl: 210 17% 98%;
+  --gray-1-hsl: 210 17% 95%;
+  --gray-2-hsl: 210 16% 93%;
+  --gray-3-hsl: 210 14% 89%;
+  --gray-4-hsl: 210 14% 83%;
+  --gray-5-hsl: 210 11% 71%;
+  --gray-6-hsl: 210 7% 56%;
+  --gray-7-hsl: 210 9% 31%;
+  --gray-8-hsl: 210 10% 23%;
+  --gray-9-hsl: 210 11% 15%;
+  --gray-10-hsl: 214 14% 10%;
+  --gray-11-hsl: 216 16% 6%;
+  --gray-12-hsl: 210 40% 2%;
+}
+:where(
+  .btn,
+  button,
+  input:is([type="button"], [type="submit"], [type="reset"])
+) {
+  --_accent: initial;
+  --_text: initial;
+  --_size: initial;
+  --_bg-light: #fff;
+  --_bg-dark: var(--surface-3);
+  --_bg: var(--_bg-light);
+  --_border: var(--surface-3);
+  --_highlight-size: 0;
+  --_highlight-light: hsl(var(--gray-5-hsl) / 25%);
+  --_highlight-dark: hsl(var(--gray-12-hsl) / 25%);
+  --_highlight: var(--_highlight-light);
+  --_ink-shadow-light: 0 1px 0 var(--gray-3);
+  --_ink-shadow-dark: 0 1px 0 var(--surface-1);
+  --_ink-shadow: var(--_ink-shadow-light);
+  --_icon-size: var(--size-relative-7);
+  --_icon-color: var(--_accent, var(--link));
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  background: var(--_bg);
+  border: var(--border-size-2) solid var(--_border);
+  border-radius: var(--radius-2);
+  box-shadow:
+    var(--shadow-2),
+    0 1px var(--surface-3),
+    0 0 0 var(--_highlight-size) var(--_highlight);
+  color: var(--_text);
+  font-size: var(--_size);
+  font-weight: var(--font-weight-7);
+  align-items: center;
+  gap: var(--size-2);
+  padding-block: 0.75ch;
+  padding-inline: var(--size-relative-6);
+  text-align: center;
+  text-shadow: var(--_ink-shadow);
+  transition: border-color 0.5s var(--ease-3);
+  user-select: none;
+  justify-content: center;
+  display: inline-flex;
+}
+:where(input[type="file"])::-webkit-file-upload-button {
+  --_accent: initial;
+  --_text: initial;
+  --_size: initial;
+  --_bg-light: #fff;
+  --_bg-dark: var(--surface-3);
+  --_bg: var(--_bg-light);
+  --_border: var(--surface-3);
+  --_highlight-size: 0;
+  --_highlight-light: hsl(var(--gray-5-hsl) / 25%);
+  --_highlight-dark: hsl(var(--gray-12-hsl) / 25%);
+  --_highlight: var(--_highlight-light);
+  --_ink-shadow-light: 0 1px 0 var(--gray-3);
+  --_ink-shadow-dark: 0 1px 0 var(--surface-1);
+  --_ink-shadow: var(--_ink-shadow-light);
+  --_icon-size: var(--size-relative-7);
+  --_icon-color: var(--_accent, var(--link));
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  background: var(--_bg);
+  border: var(--border-size-2) solid var(--_border);
+  border-radius: var(--radius-2);
+  box-shadow:
+    var(--shadow-2),
+    0 1px var(--surface-3),
+    0 0 0 var(--_highlight-size) var(--_highlight);
+  color: var(--_text);
+  font-size: var(--_size);
+  font-weight: var(--font-weight-7);
+  align-items: center;
+  gap: var(--size-2);
+  padding-block: 0.75ch;
+  padding-inline: var(--size-relative-6);
+  text-align: center;
+  text-shadow: var(--_ink-shadow);
+  transition: border-color 0.5s var(--ease-3);
+  user-select: none;
+  justify-content: center;
+  display: inline-flex;
+}
+:where(input[type="file"])::file-selector-button {
+  --_accent: initial;
+  --_text: initial;
+  --_size: initial;
+  --_bg-light: #fff;
+  --_bg-dark: var(--surface-3);
+  --_bg: var(--_bg-light);
+  --_border: var(--surface-3);
+  --_highlight-size: 0;
+  --_highlight-light: hsl(var(--gray-5-hsl) / 25%);
+  --_highlight-dark: hsl(var(--gray-12-hsl) / 25%);
+  --_highlight: var(--_highlight-light);
+  --_ink-shadow-light: 0 1px 0 var(--gray-3);
+  --_ink-shadow-dark: 0 1px 0 var(--surface-1);
+  --_ink-shadow: var(--_ink-shadow-light);
+  --_icon-size: var(--size-relative-7);
+  --_icon-color: var(--_accent, var(--link));
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  background: var(--_bg);
+  border: var(--border-size-2) solid var(--_border);
+  border-radius: var(--radius-2);
+  box-shadow:
+    var(--shadow-2),
+    0 1px var(--surface-3),
+    0 0 0 var(--_highlight-size) var(--_highlight);
+  color: var(--_text);
+  font-size: var(--_size);
+  font-weight: var(--font-weight-7);
+  align-items: center;
+  gap: var(--size-2);
+  padding-block: 0.75ch;
+  padding-inline: var(--size-relative-6);
+  text-align: center;
+  text-shadow: var(--_ink-shadow);
+  transition: border-color 0.5s var(--ease-3);
+  user-select: none;
+  justify-content: center;
+  display: inline-flex;
+}
+@media (prefers-color-scheme: dark) {
+  :where(
+    .btn,
+    button,
+    input:is([type="button"], [type="submit"], [type="reset"])
+  ) {
+    --_highlight: var(--_highlight-dark);
+    --_bg: var(--_bg-dark);
+    --_ink-shadow: var(--_ink-shadow-dark);
+  }
+  :where(input[type="file"])::-webkit-file-upload-button {
+    --_highlight: var(--_highlight-dark);
+    --_bg: var(--_bg-dark);
+    --_ink-shadow: var(--_ink-shadow-dark);
+  }
+  :where(input[type="file"])::file-selector-button {
+    --_highlight: var(--_highlight-dark);
+    --_bg: var(--_bg-dark);
+    --_ink-shadow: var(--_ink-shadow-dark);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  :where(
+    .btn,
+    button,
+    input:is([type="button"], [type="submit"], [type="reset"])
+  ) {
+    transition:
+      border-color 0.5s var(--ease-3),
+      box-shadow 0.145s var(--ease-4),
+      outline-offset 0.145s var(--ease-4);
+  }
+  :where(input[type="file"])::-webkit-file-upload-button {
+    transition:
+      border-color 0.5s var(--ease-3),
+      box-shadow 0.145s var(--ease-4),
+      outline-offset 0.145s var(--ease-4);
+  }
+  :where(input[type="file"])::file-selector-button {
+    transition:
+      border-color 0.5s var(--ease-3),
+      box-shadow 0.145s var(--ease-4),
+      outline-offset 0.145s var(--ease-4);
+  }
+}
+:where(
+    .btn,
+    button,
+    input:is([type="button"], [type="submit"], [type="reset"])
+  )[disabled] {
+  --_bg: none;
+  --_text: var(--gray-6);
+  box-shadow: var(--shadow-1);
+  cursor: not-allowed;
+}
+@media (prefers-color-scheme: dark) {
+  :where(
+      .btn,
+      button,
+      input:is([type="button"], [type="submit"], [type="reset"])
+    )[disabled] {
+    --_text: var(--gray-5);
+  }
+}
+:where(
+    .btn,
+    button,
+    input:is([type="button"], [type="submit"], [type="reset"])
+  ):where(:not(:active):hover) {
+  --_highlight-size: var(--size-2);
+  transition-duration: 0.25s;
+}
+:where(.btn, button, input:is([type="button"], [type="submit"], [type="reset"]))
+  > :where(svg) {
+  block-size: var(--_icon-size);
+  filter: drop-shadow(var(--_ink-shadow));
+  inline-size: var(--_icon-size);
+  flex-shrink: 0;
+}
+:where(.btn, button, input:is([type="button"], [type="submit"], [type="reset"]))
+  > :where(svg > *) {
+  stroke: var(--_icon-color);
+  stroke-width: var(--border-size-2);
+}
+:where(.btn:is(a)) {
+  text-decoration: none;
+}
+:where([type="submit"], form button:not([type], [disabled])) {
+  --_text: var(--_accent, var(--link));
+}
+:where([type="reset"]) {
+  --_text: var(--red-6);
+  --_border: var(--red-3);
+}
+:where([type="reset"]):focus-visible {
+  outline-color: var(--red-6);
+}
+@media (prefers-color-scheme: dark) {
+  :where([type="reset"]) {
+    --_text: var(--red-2);
+    --_border: var(--surface-3);
+  }
+}
+:where([type="submit"], [type="reset"], form button:not([type])):is(
+    :hover,
+    :focus-visible
+  ):not([disabled]) {
+  --_border: currentColor;
+}
+:where(input[type="file"]) {
+  border: var(--border-size-1) solid var(--surface-2);
+  border-radius: var(--radius-2);
+  box-shadow: var(--inner-shadow-4);
+  color: var(--text-2);
+  cursor: auto;
+  align-self: flex-start;
+  max-inline-size: 100%;
+  padding: 0;
+}
+:-webkit-any(
+  :where(input[type="file"])::-webkit-file-upload-button,
+  :where(input[type="file"])::file-selector-button
+) {
+  cursor: pointer;
+  margin-inline-end: var(--size-relative-6);
+}
+:is(
+  :where(input[type="file"])::file-selector-button,
+  :where(input[type="file"])::file-selector-button
+) {
+  cursor: pointer;
+  margin-inline-end: var(--size-relative-6);
+}
+@media (prefers-color-scheme: dark) {
+  :where([disabled]),
+  :where([type="reset"]),
+  :where([type="submit"]),
+  :where(form button:not([type="button"])) {
+    --_bg: var(--surface-1);
+  }
+}
+@media (--motionOK) {
+  .fade-up-and-in {
+    opacity: 0;
+    animation:
+      var(--animation-fade-in) forwards,
+      var(--animation-slide-in-up) forwards;
+    animation-duration: 0.7s, 1s;
+    animation-delay: 0.3s, 0s;
   }
 }

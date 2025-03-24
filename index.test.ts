@@ -1,5 +1,5 @@
 // adapted from https://github.com/GoogleChromeLabs/postcss-jit-props/blob/main/index.test.js
-import { bundle, transform } from 'lightningcss'
+import { browserslistToTargets, bundle, transform } from 'lightningcss'
 import plugin, { Options } from './'
 import { expect, it, vi } from 'vitest'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -646,19 +646,23 @@ function run(input: string, output: string, options: Options = {}) {
 const prettierCss = (c: string) => prettier.format(c, {parser: 'css'})
 
 it("handles openprops", async () => {
+  const targets = browserslistToTargets([">= 0.25%"])
   const options = {
     files: ['node_modules/open-props/open-props.min.css'],
-    layer: 'my-layer'
+    layer: 'my-layer',
+    targets
   }
   const { warnings, code } = bundle({
-    filename: 'node_modules/open-props/normalize.min.css',
+    filename: 'test-with-openprops-normalize-input.css',
     visitor: plugin(options),
+    drafts: { customMedia: true },
+    targets,
     minify: true
   })
   const pretty = await prettierCss(code.toString())
-  const input = readFileSync('node_modules/open-props/normalize.min.css', { encoding: 'utf-8' })
-  const { css } = await postcss([postcssPlugin(options as any)]).process(input)
-  writeFileSync("post.css", await prettierCss(css))
+  // const input = readFileSync('node_modules/open-props/normalize.min.css', { encoding: 'utf-8' })
+  // const { css } = await postcss([postcssPlugin(options as any)]).process(input)
+  // writeFileSync("post.css", await prettierCss(css))
   expect(warnings).toHaveLength(0)
   writeFileSync("test-with-openprops-normalize-output.css", pretty)
   const expectedOutput = readFileSync("test-with-openprops-normalize-output.css", { encoding: 'utf-8' })

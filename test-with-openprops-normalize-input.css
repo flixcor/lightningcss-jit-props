@@ -1,2 +1,13 @@
 @import "./node_modules/open-props/normalize.min.css";
 @import "./node_modules/open-props/buttons.min.css";
+
+@media (--motionOK) {
+    .fade-up-and-in {
+        opacity: 0;
+        animation:
+            var(--animation-fade-in) forwards,
+            var(--animation-slide-in-up) forwards;
+        animation-delay: .3s, 0s;
+        animation-duration: .7s, 1s;
+    }
+}

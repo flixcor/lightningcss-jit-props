@@ -24,6 +24,7 @@ import type {
     DeclarationBlock,
     PageMarginRule,
     Declaration,
+    Targets,
 } from 'lightningcss'
 
 type CustomMediaRule = _CustomMediaRule<ReturnedMediaQuery>
@@ -43,6 +44,7 @@ export type Options = {
     custom_selector_dark?: Selector,
     adaptive_prop_selector?: string,
     layer?: string,
+    targets?: Targets,
 } & {
     [k: `--${string}`]: string | number
 }
@@ -210,44 +212,91 @@ function* parseProps(p: Record<string, string | number>): Generator<[string, Pro
 }
 
 
-function* purgeRules<R extends Rule[] | PageMarginRule[]>(rules: R, vars: Set<string>): Generator<R extends Rule[] ? Rule : PageMarginRule> {
+function* purgeRules<R extends Rule[] | PageMarginRule[]>(rules: R, vars: Set<string>, addIndex: number): Generator<R extends Rule[] ? Rule : PageMarginRule> {
     for (const rule of rules) {
-        if (!("type" in rule) || rule.type === "font-feature-values") {
+        if (!("type" in rule)) {
+            const result = {
+                ...rule,
+                loc: {
+                    ...rule.loc,
+                    source_index: rule.loc.source_index + addIndex
+                }
+            }
+            if (result.declarations) {
+                result.declarations = purgeDeclarationsBlock(result.declarations, vars)
+            }
+            yield result as R extends Rule[] ? Rule : PageMarginRule;
+            continue;
+        }
+        if (rule.type === "font-feature-values") {
             // page margin rule
-            yield rule as R extends Rule[] ? Rule : PageMarginRule;
+            yield {
+                ...rule,
+                value: {
+                    ...rule.value,
+                    loc: {
+                        ...rule.value.loc,
+                        source_index: rule.value.loc.source_index + addIndex
+                    },
+                    rules: Object.fromEntries(Object.entries(rule.value.rules).map(([key, value]) => [key, {
+                        ...value,
+                        loc: {
+                            ...value.loc,
+                            source_index: value.loc.source_index + addIndex,
+                        },
+                    }]))
+                }
+            } as R extends Rule[] ? Rule : PageMarginRule;
             continue;
         }
         if (rule.type === "keyframes" && !vars.has(rule.value.name.value)) continue;
-        if (rule.type === "custom-media" && !vars.has(rule.value.name)) continue;
-        if (!("value" in rule && rule.value && (("rules" in rule.value) || "declarations" in rule.value))) {
-            yield rule as R extends Rule[] ? Rule : PageMarginRule;
-            continue
+        if (rule.type === "custom-media"){
+            if(!vars.has(rule.value.name)) continue;
+            console.log("custom media!", rule.value.name)
+        }
+        if (!("value" in rule && rule.value)) {
+            continue;
         }
         const mappedRule = {
             ...rule,
             value: {
-                ...rule.value
+                ...rule.value,
+                loc: {
+                    ...rule.value.loc,
+                    source_index: rule.value.loc.source_index + addIndex
+                }
             }
         }
         if ("rules" in mappedRule.value && mappedRule.value.rules) {
-            mappedRule.value.rules = [...purgeRules(mappedRule.value.rules, vars)] as Rule[] | PageMarginRule[]
+            mappedRule.value.rules = [...purgeRules(mappedRule.value.rules, vars, addIndex)] as Rule[] | PageMarginRule[]
         }
         if ("declarations" in mappedRule.value && mappedRule.value.declarations) {
-            if (mappedRule.value.declarations.declarations) {
-                mappedRule.value.declarations.declarations = [...purgeDeclarations(mappedRule.value.declarations.declarations, vars)]
-            }
-            if (mappedRule.value.declarations.importantDeclarations) {
-                mappedRule.value.declarations.importantDeclarations = [...purgeDeclarations(mappedRule.value.declarations.importantDeclarations, vars)]
-            }
+            mappedRule.value.declarations = purgeDeclarationsBlock(mappedRule.value.declarations, vars)
         }
         yield mappedRule as R extends Rule[] ? Rule : PageMarginRule
     }
 }
 
+function purgeDeclarationsBlock(declarations: DeclarationBlock, vars: Set<string>) {
+    const mapped = {
+        ...declarations
+    }
+    if (mapped.declarations) {
+        mapped.declarations = [...purgeDeclarations(mapped.declarations, vars)]
+    }
+    if (mapped.importantDeclarations) {
+        mapped.importantDeclarations = [...purgeDeclarations(mapped.importantDeclarations, vars)]
+    }
+    return mapped
+}
+
 function* purgeDeclarations(declarations: Declaration[], vars: Set<string>) {
     for (const declaration of declarations) {
         if (declaration.property === "custom" && !vars.has(declaration.value.name)) continue;
-        yield declaration
+        yield {
+            ...declaration,
+
+        }
     }
 }
 
@@ -258,6 +307,7 @@ export default function plugin(options: Options): Visitor {
         custom_selector,
         custom_selector_dark,
         layer,
+        targets,
         ...props
     } = options
 
@@ -311,6 +361,7 @@ export default function plugin(options: Options): Visitor {
                 drafts: {
                     customMedia: true
                 },
+                targets,
                 visitor: {
                     StyleSheet(s) {
                         sourceStylesheet = s
@@ -423,11 +474,8 @@ export default function plugin(options: Options): Visitor {
 
         StyleSheetExit(stylesheet: StyleSheet) {
             if (!sourceStylesheet) return
-
-            const rootRules = stylesheet.rules.map(r => r.type === "ignored" ? r : ({
-                type: r.type,
-                value: r.value
-            } as ReturnedRule))
+            const sourceCount = stylesheet.sources.length
+            const rootRules = stylesheet.rules.filter(r => r.type !== "ignored")
 
             let rulesToAppend: ReturnedRule[] | undefined,
                 rules: ReturnedRule[] | undefined
@@ -449,10 +497,13 @@ export default function plugin(options: Options): Visitor {
                 rulesToAppend = rules
             }
 
-            rulesToAppend.push(...purgeRules(sourceStylesheet.rules, STATE.mapped as Set<string>))
+            rulesToAppend.push(...purgeRules(sourceStylesheet.rules, STATE.mapped as Set<string>, sourceCount))
 
             return {
                 ...stylesheet,
+                sources: [...stylesheet.sources, ...sourceStylesheet.sources],
+                sourceMapUrls: [...stylesheet.sourceMapUrls, ...sourceStylesheet.sourceMapUrls],
+                licenseComments: [...stylesheet.licenseComments, ...sourceStylesheet.licenseComments],
                 rules
             }
         },
