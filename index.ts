@@ -1,6 +1,6 @@
 // adapted from https://github.com/GoogleChromeLabs/postcss-jit-props/blob/main/index.js
-import { readFileSync } from 'node:fs'
-import crypto from "node:crypto"
+// import { readFileSync } from 'node:fs'
+// import crypto from "node:crypto"
 import glob from "tiny-glob/sync.js"
 import { Buffer } from "node:buffer"
 import {
@@ -21,9 +21,8 @@ import type {
     StyleSheet,
     ReturnedRule,
     Rule,
-    DeclarationBlock,
-    PageMarginRule,
-    Declaration,
+    DeclarationBlock as _DeclarationBlock,
+    PageMarginRule as _PageMarginRule,
     Targets,
 } from 'lightningcss'
 
@@ -31,10 +30,11 @@ type CustomMediaRule = _CustomMediaRule<ReturnedMediaQuery>
 type KeyframesRule = _KeyframesRule<ReturnedDeclaration>
 type MediaRule = _MediaRule<ReturnedDeclaration, ReturnedMediaQuery>
 type Visitor = _Visitor<CustomAtRules>
+type PageMarginRule = _PageMarginRule<ReturnedDeclaration>
+type DeclarationBlock = _DeclarationBlock<ReturnedDeclaration>
 
 type PropValue = {
-    dependencies: string[],
-    deletion: Array<() => void>
+    dependencies: string[]
 } | null | undefined
 type Props = Record<string, PropValue>
 
@@ -46,7 +46,7 @@ export type Options = {
     layer?: string,
     targets?: Targets,
 } & {
-    [k: `--${string}`]: string | number
+    [k: VariableKey]: string | number
 }
 
 type State = {
@@ -69,44 +69,6 @@ const loc = {
 
 const processed = new WeakSet();
 
-// const getAdaptivePropSelector = (selector: string | undefined): (s: string) => string =>
-//     selector
-//         ? prop => `${prop}${selector}`
-//         : prop => `${prop}-@media:dark`
-
-
-// function* getVariables(tokenOrValueArray: TokenOrValue[]): Generator<Variable> {
-//     for (const tokenOrValue of tokenOrValueArray) {
-//         switch (tokenOrValue.type) {
-//             case "function":
-//                 yield* getVariables(tokenOrValue.value.arguments)
-//                 break;
-//             case "var":
-//                 yield tokenOrValue.value
-//                 break;
-//             // case 'unresolved-color':
-//             //     yield* getVariables(tokenOrValue.value.alpha);
-//             //     yield* getVariables(tokenOrValue.value.dark);
-//             //     yield* getVariables(tokenOrValue.value.light);
-//             //     break;
-//             default:
-//                 break;
-//         }
-//     }
-// }
-
-// function* getVariableDeclarationRecursive(props: Props, variable: Variable): Generator<ReturnedDeclaration> {
-//     const declaration = props[variable.name.ident]
-//     if (!isDeclaration(declaration?.value)) return;
-//     yield declaration.value
-//     if (declaration.value.property === "custom" && 'value' in declaration.value) {
-//         const value = declaration.value.value
-//         for (const variable of getVariables(value.value)) {
-//             yield* getVariableDeclarationRecursive(props, variable)
-//         }
-//     }
-// }
-
 const getState = (): State => (
     {
         mapped: new Set(),            // track prepended props
@@ -120,7 +82,7 @@ const getState = (): State => (
     }
 )
 
-function* getVars(condition: MediaCondition | null | undefined): Generator<`--${string}`> {
+function* getVars(condition: MediaCondition | null | undefined): Generator<VariableKey> {
     for (const element of getFeatures(condition)) {
         if (isValidKey(element)) yield element
     }
@@ -138,81 +100,157 @@ function* getFeatures(condition: MediaCondition | null | undefined): Generator<s
     }
 }
 
-const isValidKey = (k: string): k is `--${string}` => k.startsWith('--')
+type VariableKey = `--${string}`
+const isValidKey = (k: string): k is VariableKey => k.startsWith('--')
 
-// const getMediaRuleKey = (r: MediaRule) => r.query.mediaQueries
-//     .map(x => [...getMediaQueryKey(x)].join("|"))
-//     .sort()
-//     .join('|||')
+function parseProps({
+    adaptive_prop_selector,
+    custom_selector_dark,
+    custom_selector, ...p
+}: Options) {
+    const stylesheet: StyleSheet<ReturnedDeclaration, ReturnedMediaQuery> = {
+        licenseComments: [],
+        sourceMapUrls: [],
+        sources: [],
+        rules: []
+    }
+    const props: Props = {}
+    const rootSelector: Selector = [{ type: 'pseudo-class', kind: 'root' }]
+    adaptive_prop_selector ||= '-@media:dark'
+    const regularSelector = custom_selector || rootSelector
+    const darkSelector = custom_selector_dark || regularSelector
+    const styleRules: ReturnedDeclaration[] = []
+    const darkRules: ReturnedDeclaration[] = []
+    const customMedia: { type: 'custom-media', value: CustomMediaRule }[] = []
+    const keyframeRules: { type: 'keyframes', value: KeyframesRule }[] = []
 
-// function* getMediaQueryKey(q: ReturnedMediaQuery): Generator<string> {
-//     if ('raw' in q) {
-//         yield q.raw
-//         return
-//     }
-//     yield* getFeatures(q.condition)
-//     if (q.qualifier) yield q.qualifier
-//     if (q.mediaType) yield q.mediaType
-// }
-
-function* parseProps(p: Record<string, string | number>): Generator<[string, PropValue]> {
     for (const [property, value] of Object.entries(p)) {
         if (!isValidKey(property)) continue;
-
+        const prop = {
+            dependencies: [] as string[]
+        }
         if (typeof value === "string") {
             if (value.startsWith('@keyframes')) {
-                let rule: KeyframesRule | undefined
                 transform({
                     code: Buffer.from(value),
                     filename: "props.css",
                     visitor: {
                         Rule: {
                             keyframes(r) {
-                                rule = r.value
+                                keyframeRules.push(r)
+                                props[r.value.name.value] = prop
                             }
+                        },
+                        Variable(v) {
+                            prop.dependencies.push(v.name.ident)
                         }
                     }
                 })
-                if (rule) {
-                    yield [property, rule]
-                    continue
-                }
+                continue
             }
             if (value.startsWith('@custom-media')) {
-                let rule: CustomMediaRule | undefined
                 transform({
                     code: Buffer.from(value),
                     filename: "props.css",
                     visitor: {
                         Rule: {
                             "custom-media"(r) {
-                                rule = r.value
+                                customMedia.push(r)
+                                props[r.value.name] = prop
                             }
+                        },
+                        Variable(v) {
+                            prop.dependencies.push(v.name.ident)
                         }
                     },
                     drafts: {
                         customMedia: true
                     }
                 })
-                if (rule) {
-                    yield [property, rule]
-                    continue
-                }
+                continue
             }
         }
 
-        yield [property, {
-            declaration: {
-                property,
-                raw: value.toString()
-            },
-            mediaRules: []
-        }]
+        const [rulesToPush, key] = property.endsWith(adaptive_prop_selector)
+            ? [darkRules, property.substring(0, property.length - adaptive_prop_selector.length)]
+            : [styleRules, property]
+
+        transform({
+            filename: "props.css",
+            code: Buffer.from(`:root {${key}: ${value};}`),
+            visitor: {
+                Declaration(p) {
+                    if (p.property === "custom") {
+                        rulesToPush.push(p)
+                        props[p.value.name] = prop
+                    }
+                },
+                Variable(v) {
+                    prop.dependencies.push(v.name.ident)
+                }
+            }
+        })
     }
+
+    stylesheet.rules.push(...customMedia)
+
+    if (styleRules.length) {
+        stylesheet.rules.push({
+            type: 'style',
+            value: {
+                selectors: [regularSelector],
+                loc,
+                declarations: {
+                    declarations: styleRules
+                }
+            }
+        })
+    }
+
+    if (darkRules.length) {
+        stylesheet.rules.push({
+            type: 'media',
+            value: {
+                loc,
+                rules: [{
+                    type: 'style',
+                    value: {
+                        selectors: [darkSelector],
+                        loc,
+                        declarations: {
+                            declarations: darkRules
+                        }
+                    }
+                }],
+                query: {
+                    mediaQueries: [
+                        {
+                            mediaType: 'all',
+                            condition: {
+                                type: "feature",
+                                value: {
+                                    type: 'plain',
+                                    name: 'prefers-color-scheme',
+                                    value: {
+                                        type: "ident",
+                                        value: "dark"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+        })
+    }
+
+    stylesheet.rules.push(...keyframeRules)
+
+    return [stylesheet, props] as const
 }
 
 
-function* purgeRules<R extends Rule[] | PageMarginRule[]>(rules: R, vars: Set<string>, addIndex: number): Generator<R extends Rule[] ? Rule : PageMarginRule> {
+function* purgeRules<R extends ReturnedRule[] | PageMarginRule[]>(rules: R, vars: Set<string>, addIndex: number): Generator<R extends ReturnedRule[] ? ReturnedRule : PageMarginRule> {
     for (const rule of rules) {
         if (!("type" in rule)) {
             const result = {
@@ -225,7 +263,7 @@ function* purgeRules<R extends Rule[] | PageMarginRule[]>(rules: R, vars: Set<st
             if (result.declarations) {
                 result.declarations = purgeDeclarationsBlock(result.declarations, vars)
             }
-            yield result as R extends Rule[] ? Rule : PageMarginRule;
+            yield result as R extends ReturnedRule[] ? ReturnedRule : PageMarginRule;
             continue;
         }
         if (rule.type === "font-feature-values") {
@@ -246,12 +284,12 @@ function* purgeRules<R extends Rule[] | PageMarginRule[]>(rules: R, vars: Set<st
                         },
                     }]))
                 }
-            } as R extends Rule[] ? Rule : PageMarginRule;
+            } as R extends ReturnedRule[] ? ReturnedRule : PageMarginRule;
             continue;
         }
         if (rule.type === "keyframes" && !vars.has(rule.value.name.value)) continue;
-        if (rule.type === "custom-media"){
-            if(!vars.has(rule.value.name)) continue;
+        if (rule.type === "custom-media") {
+            if (!vars.has(rule.value.name)) continue;
             console.log("custom media!", rule.value.name)
         }
         if (!("value" in rule && rule.value)) {
@@ -273,7 +311,7 @@ function* purgeRules<R extends Rule[] | PageMarginRule[]>(rules: R, vars: Set<st
         if ("declarations" in mappedRule.value && mappedRule.value.declarations) {
             mappedRule.value.declarations = purgeDeclarationsBlock(mappedRule.value.declarations, vars)
         }
-        yield mappedRule as R extends Rule[] ? Rule : PageMarginRule
+        yield mappedRule as R extends ReturnedRule[] ? ReturnedRule : PageMarginRule
     }
 }
 
@@ -290,35 +328,34 @@ function purgeDeclarationsBlock(declarations: DeclarationBlock, vars: Set<string
     return mapped
 }
 
-function* purgeDeclarations(declarations: Declaration[], vars: Set<string>) {
+function* purgeDeclarations(declarations: ReturnedDeclaration[], vars: Set<string>) {
     for (const declaration of declarations) {
-        if (declaration.property === "custom" && !vars.has(declaration.value.name)) continue;
-        yield {
-            ...declaration,
 
+        if (declaration.property === "custom") {
+            const name = "value" in declaration ? declaration.value.name : declaration.property
+            if (!vars.has(name)) continue;
         }
+        yield declaration
     }
 }
 
 export default function plugin(options: Options): Visitor {
     const {
         files,
-        adaptive_prop_selector,
-        custom_selector,
-        custom_selector_dark,
         layer,
         targets,
-        ...props
     } = options
 
-    const FilePropsCache = new Map();
-
-    const UserProps: Props = Object.fromEntries(parseProps(props))
+    // const FilePropsCache = new Map();
+    const [objStylesheet, UserProps] = parseProps(options)
 
     const STATE = getState()
-    let sourceStylesheet: StyleSheet | undefined
 
-    if (!files?.length && !Object.keys(props).length) {
+    const propStylesheets: StyleSheet<ReturnedDeclaration, ReturnedMediaQuery>[] = [
+        objStylesheet
+    ]
+
+    if (!files?.length && !Object.keys(UserProps).length) {
         console.warn('lightningcss-jit-props: Variable source(s) not passed.')
         return {}
     }
@@ -329,25 +366,23 @@ export default function plugin(options: Options): Visitor {
             .map((file) => glob(file))
             .flat()
 
-        globs.forEach(file => {
-            const data = readFileSync(file)
+        globs.forEach((file) => {
+            // const data = readFileSync(file)
 
-            const hashSum = crypto.createHash('sha256')
-            hashSum.update(file)
-            hashSum.update(data)
-            const fileCacheKey = hashSum.digest('hex')
+            // const hashSum = crypto.createHash('sha256')
+            // hashSum.update(file)
+            // hashSum.update(data)
+            // const fileCacheKey = hashSum.digest('hex')
 
-            if (FilePropsCache.has(fileCacheKey)) {
-                const fileProps = FilePropsCache.get(fileCacheKey)
-                for (const [key, value] of fileProps) {
-                    UserProps[key] = value
-                }
+            // if (FilePropsCache.has(fileCacheKey)) {
+            //     const [stylesheet, fileProps] = FilePropsCache.get(fileCacheKey)
+            //     propStylesheets[i + 1] = stylesheet
+            //     Object.assign(UserProps, fileProps)
+            //     return
+            // }
 
-                return
-            }
-
-            const fileProps = new Map()
-            FilePropsCache.set(fileCacheKey, fileProps)
+            // const fileProps = new Map()
+            // FilePropsCache.set(fileCacheKey, fileProps)
             type Parent = {
                 rules?: Rule[],
                 declarations?: DeclarationBlock,
@@ -364,7 +399,7 @@ export default function plugin(options: Options): Visitor {
                 targets,
                 visitor: {
                     StyleSheet(s) {
-                        sourceStylesheet = s
+                        propStylesheets.push(s)
                         parent = {
                             rules: s.rules,
                         }
@@ -378,17 +413,8 @@ export default function plugin(options: Options): Visitor {
                         if (name) {
                             let existing = UserProps[name]
                             if (!existing) {
-                                existing = { dependencies: [], deletion: [] }
+                                existing = { dependencies: [] }
                                 UserProps[name] = existing
-                            }
-                            const rulesToDeleteFrom = parent.rules
-                            if (rulesToDeleteFrom) {
-                                existing.deletion.push(() => {
-                                    const index = rulesToDeleteFrom.indexOf(rule)
-                                    if (index > -1) {
-                                        rulesToDeleteFrom.splice(index, 1)
-                                    }
-                                })
                             }
 
                         }
@@ -423,24 +449,10 @@ export default function plugin(options: Options): Visitor {
                             if (!existing) {
                                 existing = {
                                     dependencies: [],
-                                    deletion: []
                                 }
                                 UserProps[prop.name] = existing
                             }
                             parentProp = existing
-                            const declarationBlockToDeleteFrom = parent.declarations
-                            if (declarationBlockToDeleteFrom) {
-                                existing.deletion.push(() => {
-                                    const regularIndex = declarationBlockToDeleteFrom.declarations?.findIndex(x => x.property === "custom" && x.value.name === prop.name) ?? -1
-                                    if (regularIndex > -1) {
-                                        declarationBlockToDeleteFrom.declarations?.splice(regularIndex, 1)
-                                    }
-                                    const importantIndex = declarationBlockToDeleteFrom.importantDeclarations?.findIndex(x => x.property === "custom" && x.value.name === prop.name) ?? -1
-                                    if (importantIndex > -1) {
-                                        declarationBlockToDeleteFrom.importantDeclarations?.splice(importantIndex, 1)
-                                    }
-                                })
-                            }
                         }
                     },
                     Variable(v) {
@@ -473,8 +485,7 @@ export default function plugin(options: Options): Visitor {
         },
 
         StyleSheetExit(stylesheet: StyleSheet) {
-            if (!sourceStylesheet) return
-            const sourceCount = stylesheet.sources.length
+            if (!propStylesheets.length) return
             const rootRules = stylesheet.rules.filter(r => r.type !== "ignored")
 
             let rulesToAppend: ReturnedRule[] | undefined,
@@ -496,14 +507,20 @@ export default function plugin(options: Options): Visitor {
                 rules = rootRules
                 rulesToAppend = rules
             }
+            let sourceCount = stylesheet.sources.length
 
-            rulesToAppend.push(...purgeRules(sourceStylesheet.rules, STATE.mapped as Set<string>, sourceCount))
+            for (const sourceStylesheet of propStylesheets) {
+                const purged = purgeRules(sourceStylesheet.rules, STATE.mapped as Set<string>, sourceCount)
+                rulesToAppend.unshift(...purged)
+                stylesheet.sources.push(...sourceStylesheet.sources)
+                stylesheet.sourceMapUrls.push(...sourceStylesheet.sourceMapUrls)
+                stylesheet.licenseComments.push(...sourceStylesheet.licenseComments)
+                sourceCount += stylesheet.sources.length
+            }
+
 
             return {
                 ...stylesheet,
-                sources: [...stylesheet.sources, ...sourceStylesheet.sources],
-                sourceMapUrls: [...stylesheet.sourceMapUrls, ...sourceStylesheet.sourceMapUrls],
-                licenseComments: [...stylesheet.licenseComments, ...sourceStylesheet.licenseComments],
                 rules
             }
         },

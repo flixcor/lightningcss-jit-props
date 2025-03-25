@@ -1,4 +1,5 @@
 @layer my-layer {
+  @custom-media --motionOK (prefers-reduced-motion: no-preference);
   :where(html) {
     --font-system-ui:
       system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans,
