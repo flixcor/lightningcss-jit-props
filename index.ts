@@ -123,6 +123,7 @@ function parseProps({
     const darkRules: ReturnedDeclaration[] = []
     const customMedia: { type: 'custom-media', value: CustomMediaRule }[] = []
     const keyframeRules: { type: 'keyframes', value: KeyframesRule }[] = []
+    const darkKeyframeRules = [...keyframeRules]
 
     for (const [property, value] of Object.entries(p)) {
         if (!isValidKey(property)) continue;
@@ -137,12 +138,21 @@ function parseProps({
                     visitor: {
                         Rule: {
                             keyframes(r) {
-                                keyframeRules.push(r)
+                                const rulesToPush = property.endsWith(adaptive_prop_selector)
+                                    ? darkKeyframeRules
+                                    : keyframeRules
+
+                                rulesToPush.push(r)
                                 props[r.value.name.value] = prop
                             }
                         },
-                        Variable(v) {
-                            prop.dependencies.push(v.name.ident)
+                        Variable({ name: { ident } }) {
+                            prop.dependencies.push(ident)
+                        },
+                        Token: {
+                            ident({ value }) {
+                                prop.dependencies.push(value)
+                            }
                         }
                     }
                 })
@@ -161,6 +171,11 @@ function parseProps({
                         },
                         Variable(v) {
                             prop.dependencies.push(v.name.ident)
+                        },
+                        Token: {
+                            ident({ value }) {
+                                prop.dependencies.push(value)
+                            }
                         }
                     },
                     drafts: {
@@ -187,6 +202,11 @@ function parseProps({
                 },
                 Variable(v) {
                     prop.dependencies.push(v.name.ident)
+                },
+                Token: {
+                    ident({ value }) {
+                        prop.dependencies.push(value)
+                    }
                 }
             }
         })
@@ -207,21 +227,25 @@ function parseProps({
         })
     }
 
-    if (darkRules.length) {
+    stylesheet.rules.push(...keyframeRules)
+
+    if (darkRules.length || darkKeyframeRules.length) {
         stylesheet.rules.push({
             type: 'media',
             value: {
                 loc,
-                rules: [{
-                    type: 'style',
-                    value: {
-                        selectors: [darkSelector],
-                        loc,
-                        declarations: {
-                            declarations: darkRules
+                rules: [
+                    {
+                        type: 'style',
+                        value: {
+                            selectors: [darkSelector],
+                            loc,
+                            declarations: {
+                                declarations: darkRules
+                            }
                         }
-                    }
-                }],
+                    }, ...darkKeyframeRules
+                ],
                 query: {
                     mediaQueries: [
                         {
@@ -244,7 +268,6 @@ function parseProps({
         })
     }
 
-    stylesheet.rules.push(...keyframeRules)
 
     return [stylesheet, props] as const
 }
@@ -288,13 +311,8 @@ function* purgeRules<R extends ReturnedRule[] | PageMarginRule[]>(rules: R, vars
             continue;
         }
         if (rule.type === "keyframes" && !vars.has(rule.value.name.value)) continue;
-        if (rule.type === "custom-media") {
-            if (!vars.has(rule.value.name)) continue;
-            console.log("custom media!", rule.value.name)
-        }
-        if (!("value" in rule && rule.value)) {
-            continue;
-        }
+        if (rule.type === "custom-media" && !vars.has(rule.value.name)) continue;
+        if (!("value" in rule && rule.value)) continue;
         const mappedRule = {
             ...rule,
             value: {
@@ -416,6 +434,9 @@ export default function plugin(options: Options): Visitor {
                                 existing = { dependencies: [] }
                                 UserProps[name] = existing
                             }
+                            if (parentProp) {
+                                parentProp.dependencies.push(name)
+                            }
 
                         }
                         if ('value' in rule && rule.value) {
@@ -458,6 +479,13 @@ export default function plugin(options: Options): Visitor {
                     Variable(v) {
                         if (parentProp) {
                             parentProp.dependencies.push(v.name.ident)
+                        }
+                    },
+                    Token: {
+                        ident({ value }) {
+                            if (parentProp) {
+                                parentProp.dependencies.push(value)
+                            }
                         }
                     },
                     DeclarationExit: {

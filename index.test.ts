@@ -23,7 +23,7 @@ const MockProps = {
   '--dark': '@custom-media --dark (prefers-color-scheme: dark);',
   '--text': '#fff',
   '--text-@media:dark': '#000',
-}
+} as const
 
 const MockPropsWithCustomAdaptiveProp = {
   '--text': '#fff',
@@ -205,8 +205,8 @@ it('Can jit props from inside functions', () => {
 }`,
     `:root {
   --h: 200;
-  --s: 50%;
-  --l: 50%;
+  --s: 50.0%;
+  --l: 50.0%;
 }
 
 a {
@@ -242,8 +242,8 @@ it('Can jit props into a layer', () => {
     `@layer test {
   :root {
     --h: 200;
-    --s: 50%;
-    --l: 50%;
+    --s: 50.0%;
+    --l: 50.0%;
   }
 }
 
@@ -266,14 +266,14 @@ it('Can jit a keyframe animation', () => {
   --fade-in: fade-in .5s ease;
 }
 
-a {
-  animation: var(--fade-in);
-}
-
 @keyframes fade-in {
   to {
     opacity: 1;
   }
+}
+
+a {
+  animation: var(--fade-in);
 }`,
     MockProps
   )
@@ -288,10 +288,6 @@ it('Can jit an adaptive keyframe animation', () => {
   --adaptive-fade: adaptive-fade .5s ease;
 }
 
-a {
-  animation: var(--adaptive-fade);
-}
-
 @keyframes adaptive-fade {
   to {
     background: #fff;
@@ -304,8 +300,12 @@ a {
       background: #000;
     }
   }
+}
+
+a {
+  animation: var(--adaptive-fade);
 }`,
-    MockProps
+    MockProps //
   )
 })
 
@@ -381,17 +381,17 @@ it('Can jit props from a CSS file', () => {
   --fade-in: fade-in .5s ease;
 }
 
+@keyframes fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
 @media (--dark) {
   a {
     color: var(--red);
     border-color: var(--pink);
     animation: var(--fade-in);
-  }
-}
-
-@keyframes fade-in {
-  to {
-    opacity: 1;
   }
 }`,
     { files: ['./props.test.css'] }
@@ -415,17 +415,17 @@ it('Can jit props from a CSS file via glob', () => {
   --fade-in: fade-in .5s ease;
 }
 
+@keyframes fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
 @media (--dark) {
   a {
     color: var(--red);
     border-color: var(--pink);
     animation: var(--fade-in);
-  }
-}
-
-@keyframes fade-in {
-  to {
-    opacity: 1;
   }
 }`,
     { files: ['./*.test.css'] }
@@ -466,14 +466,14 @@ it('Can jit light and dark props to a custom selector', () => {
   --text: #fff;
 }
 
-a {
-  color: var(--text);
-}
-
 @media (prefers-color-scheme: dark) {
   :global {
     --text: #000;
   }
+}
+
+a {
+  color: var(--text);
 }`,
     {
       ...MockProps,
@@ -491,14 +491,14 @@ it('Can jit light & dark props to a custom selector for use with a client side s
   --text: #fff;
 }
 
-a {
-  color: var(--text);
-}
-
 @media (prefers-color-scheme: dark) {
   .dark {
     --text: #000;
   }
+}
+
+a {
+  color: var(--text);
 }`,
     {
       ...MockProps,
@@ -531,14 +531,14 @@ it('Can jit a light and dark adaptive prop', () => {
   --text: #fff;
 }
 
-p {
-  color: var(--text);
-}
-
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #000;
   }
+}
+
+p {
+  color: var(--text);
 }`,
     MockProps
   )
@@ -553,14 +553,14 @@ it('Can jit a light and dark color with a custom adaptive prop parameter', () =>
   --text: #fff;
 }
 
-p {
-  color: var(--text);
-}
-
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #000;
   }
+}
+
+p {
+  color: var(--text);
 }`,
     {
       ...MockPropsWithCustomAdaptiveProp,
@@ -643,7 +643,7 @@ it('Parses an empty file and rule', () => {
   expect(result.warnings).toHaveLength(0);
 })
 
-const prettierCss = (c: string) => prettier.format(c, {parser: 'css'})
+const prettierCss = (c: string) => prettier.format(c, { parser: 'css' })
 
 it("handles openprops", async () => {
   const targets = browserslistToTargets([">= 0.25%"])
