@@ -403,3 +403,7 @@ FodyWeavers.xsd
 /dotnet/lightningcss_cs_bindings.dll
 
 coverage
+index.js
+index.test.js
+index.d.ts
+index.test.d.ts
