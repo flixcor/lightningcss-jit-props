@@ -2,9 +2,7 @@
 import { browserslistToTargets, bundle, transform } from 'lightningcss'
 import plugin, { Options } from './'
 import { expect, it, vi } from 'vitest'
-import { readFileSync, writeFileSync } from 'node:fs'
-import postcss from "postcss"
-import postcssPlugin from 'postcss-jit-props'
+import { readFileSync, /*writeFileSync*/ } from 'node:fs'
 import * as prettier from "prettier"
 
 const MockProps = {
