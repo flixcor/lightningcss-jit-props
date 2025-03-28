@@ -1,4 +1,49 @@
 @layer my-layer {
+  :where(html) {
+    --animation-fade-in: fade-in 0.5s var(--ease-3);
+    --animation-fade-in-bloom: fade-in-bloom 2s var(--ease-3);
+    --animation-slide-in-up: slide-in-up 0.5s var(--ease-3);
+  }
+  @keyframes fade-in {
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes fade-in-bloom {
+    0% {
+      filter: brightness() blur(20px);
+      opacity: 0;
+    }
+    10% {
+      filter: brightness(2) blur(10px);
+      opacity: 1;
+    }
+    to {
+      filter: brightness() blur();
+      opacity: 1;
+    }
+  }
+  @keyframes slide-in-up {
+    0% {
+      transform: translateY(100%);
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    @keyframes fade-in-bloom {
+      0% {
+        filter: brightness() blur(20px);
+        opacity: 0;
+      }
+      10% {
+        filter: brightness(0.5) blur(10px);
+        opacity: 1;
+      }
+      to {
+        filter: brightness() blur();
+        opacity: 1;
+      }
+    }
+  }
   @custom-media --motionOK (prefers-reduced-motion: no-preference);
   :where(html) {
     --font-system-ui:
@@ -93,6 +138,7 @@
     --green-1: #d3f9d8;
     --green-9: #2b8a3e;
     --animation-fade-in: fade-in 0.5s var(--ease-3);
+    --animation-fade-in-bloom: fade-in-bloom 2s var(--ease-3);
     --animation-slide-in-up: slide-in-up 0.5s var(--ease-3);
     --border-size-1: 1px;
     --border-size-2: 2px;
@@ -107,15 +153,19 @@
       --inner-shadow-highlight:
         inset 0 -0.5px 0 0 #fff1, inset 0 0.5px 0 0 #0007;
     }
-  }
-  @keyframes fade-in {
-    to {
-      opacity: 1;
-    }
-  }
-  @keyframes slide-in-up {
-    0% {
-      transform: translateY(100%);
+    @keyframes fade-in-bloom {
+      0% {
+        filter: brightness() blur(20px);
+        opacity: 0;
+      }
+      10% {
+        filter: brightness(0.5) blur(10px);
+        opacity: 1;
+      }
+      to {
+        filter: brightness() blur();
+        opacity: 1;
+      }
     }
   }
 }
@@ -853,4 +903,7 @@
     animation-duration: 0.7s, 1s;
     animation-delay: 0.3s, 0s;
   }
+}
+.bloom {
+  animation: var(--animation-fade-in-bloom);
 }

@@ -648,7 +648,11 @@ const prettierCss = (c: string) => prettier.format(c, { parser: 'css' })
 it("handles openprops", async () => {
   const targets = browserslistToTargets([">= 0.25%"])
   const options = {
-    files: ['node_modules/open-props/open-props.min.css', 'node_modules/open-props/media.min.css'],
+    files: [
+      'node_modules/open-props/open-props.min.css', 
+      'node_modules/open-props/media.min.css',
+      "node_modules/open-props/animations.min.css"
+    ],
     layer: 'my-layer',
     targets
   }
@@ -660,9 +664,7 @@ it("handles openprops", async () => {
     minify: true
   })
   const pretty = await prettierCss(code.toString())
-  // const input = readFileSync('node_modules/open-props/normalize.min.css', { encoding: 'utf-8' })
-  // const { css } = await postcss([postcssPlugin(options as any)]).process(input)
-  // writeFileSync("post.css", await prettierCss(css))
+  // writeFileSync("test-with-openprops-normalize-output.css", pretty)
   expect(warnings).toHaveLength(0)
   const expectedOutput = readFileSync("test-with-openprops-normalize-output.css", { encoding: 'utf-8' })
   expect(pretty).toEqual(expectedOutput)
