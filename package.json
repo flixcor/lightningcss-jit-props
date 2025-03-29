@@ -52,5 +52,10 @@
   },
   "peerDependencies": {
     "lightningcss": "1"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "6.2.3"
+    }
   }
 }
